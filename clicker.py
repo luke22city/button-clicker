@@ -13,78 +13,105 @@ if not SITE_USER or not SITE_PASS:
 def run():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
         page = context.new_page()
+        page.set_default_timeout(60000)  # 60 second timeout for all actions
 
         # Step 1: Log in to Airtable
         print("Navigating to Airtable login...")
-        page.goto("https://airtable.com/login")
-        page.wait_for_load_state("domcontentloaded")
+        page.goto("https://airtable.com/login", wait_until="domcontentloaded")
+        page.wait_for_timeout(3000)
+
+        print("Page title:", page.title())
+
+        # Try multiple possible email field selectors
+        print("Entering email...")
+        for selector in ['input[name="email"]', 'input[type="email"]', 'input[placeholder*="email" i]', '#sign-in-email']:
+            try:
+                if page.locator(selector).count() > 0:
+                    page.fill(selector, SITE_USER)
+                    print(f"Filled email using selector: {selector}")
+                    break
+            except Exception as e:
+                print(f"Selector {selector} failed: {e}")
+                continue
+
+        # Click continue/next button
+        for selector in ['button[type="submit"]', 'button:has-text("Continue")', 'button:has-text("Sign in")', 'button:has-text("Next")']:
+            try:
+                if page.locator(selector).count() > 0:
+                    page.click(selector)
+                    print(f"Clicked submit using: {selector}")
+                    break
+            except Exception:
+                continue
+
         page.wait_for_timeout(2000)
 
-        print("Entering credentials...")
-        page.fill('input[name="email"]', SITE_USER)
-        page.click('button[type="submit"]')
-        page.wait_for_timeout(1500)
+        # Enter password
+        print("Entering password...")
+        for selector in ['input[name="password"]', 'input[type="password"]']:
+            try:
+                if page.locator(selector).count() > 0:
+                    page.fill(selector, SITE_PASS)
+                    print(f"Filled password using selector: {selector}")
+                    break
+            except Exception:
+                continue
 
-        page.fill('input[name="password"]', SITE_PASS)
-        page.click('button[type="submit"]')
+        # Click sign in
+        for selector in ['button[type="submit"]', 'button:has-text("Sign in")', 'button:has-text("Log in")']:
+            try:
+                if page.locator(selector).count() > 0:
+                    page.click(selector)
+                    print(f"Clicked sign in using: {selector}")
+                    break
+            except Exception:
+                continue
+
         print("Waiting for login to complete...")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(4000)
+        page.wait_for_timeout(6000)
+        print("Page after login:", page.title())
 
         # Step 2: Navigate to the target view
         print("Navigating to target view...")
-        page.goto(TARGET_URL)
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_timeout(5000)
+        page.goto(TARGET_URL, wait_until="domcontentloaded")
+        page.wait_for_timeout(6000)
+        print("Page at target:", page.title())
 
-        # Step 3: Find the iframe and click the Run button inside it
-        print("Looking for iframe...")
-        frames = page.frames
-        print(f"Found {len(frames)} frames")
+        # Step 3: Find the iframe and click the Run button
+        print(f"Found {len(page.frames)} frames total")
 
         run_clicked = False
-        for frame in frames:
+        for frame in page.frames:
             try:
                 url = frame.url
-                print(f"Checking frame: {url[:80]}")
-                if "airtableblocks.com" in url or "alt.airtableblocks" in url:
-                    print("Found Airtable block iframe — looking for Run button...")
-                    frame.wait_for_timeout(2000)
-                    run_button = frame.locator('button:has-text("Run")')
-                    if run_button.count() > 0:
-                        run_button.first.click()
-                        print("Clicked Run button!")
+                print(f"Frame: {url[:100]}")
+                if "airtableblocks.com" in url:
+                    print("Found Airtable block iframe!")
+                    frame.wait_for_timeout(3000)
+                    btn = frame.locator('button:has-text("Run")')
+                    count = btn.count()
+                    print(f"Run buttons found: {count}")
+                    if count > 0:
+                        btn.first.click()
+                        print("SUCCESS — Clicked Run button!")
                         run_clicked = True
                         break
-                    else:
-                        print("Run button not found in this frame, trying next...")
             except Exception as e:
-                print(f"Error in frame: {e}")
+                print(f"Frame error: {e}")
                 continue
 
         if not run_clicked:
-            print("Trying fallback — searching all frames for Run button...")
-            for frame in page.frames:
-                try:
-                    btn = frame.locator('button:has-text("Run")')
-                    if btn.count() > 0:
-                        btn.first.click()
-                        print("Clicked Run button via fallback!")
-                        run_clicked = True
-                        break
-                except Exception:
-                    continue
-
-        if not run_clicked:
-            print("ERROR: Could not find Run button in any frame.")
+            print("ERROR: Could not find Run button.")
             browser.close()
             sys.exit(1)
 
         page.wait_for_timeout(2000)
         browser.close()
-        print("Done — Run button clicked successfully.")
+        print("Done.")
 
 if __name__ == "__main__":
     run()
