@@ -1,1 +1,33 @@
 
+name: Click Buttons
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  click:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Run button clicker
+        env:
+          TARGET_URL: ${{ secrets.TARGET_URL }}
+          SITE_USER:  ${{ secrets.SITE_USER }}
+          SITE_PASS:  ${{ secrets.SITE_PASS }}
+        run: python clicker.py
