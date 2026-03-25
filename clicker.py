@@ -22,12 +22,12 @@ def run():
         # page.fill("#username", SITE_USER)
         # page.fill("#password", SITE_PASS)
         # page.click("button[type=submit]")
-        # page.wait_for_load_state("networkidle")
+        # page.wait_for_load_state("domcontentloaded")
         # ────────────────────────────────────────────────────────────────
 
         print(f"Navigating to {TARGET_URL}")
         page.goto(TARGET_URL)
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded")
 
         # ── Replace selectors below with your actual button selectors ───
         # Right-click button in Chrome → Inspect → right-click element
