@@ -38,7 +38,7 @@ def run():
         #   page.click("text=Confirm")
         #   page.click(".btn-primary")
 
-        page.click("button#your-button-id")   # <-- change this
+        page.click("body > div > div > div > div > div > div.css-owipfn > div > div > button > svg")   # <-- change this
         print("Clicked button 1")
         page.wait_for_timeout(1500)
 
