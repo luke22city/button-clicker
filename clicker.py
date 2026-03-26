@@ -10,7 +10,6 @@ if not COOKIES_JSON:
     print("ERROR: AIRTABLE_COOKIES secret is not set.")
     sys.exit(1)
 
-# All 7 blocks identified by their unique iframe URL fragment
 BLOCKS = [
     ("Partners",        "2g6508a"),
     ("User",            "pbt7bis"),
@@ -38,7 +37,7 @@ def run():
 
         print("Navigating to target view...")
         page.goto(TARGET_URL, wait_until="domcontentloaded")
-        page.wait_for_timeout(6000)
+        page.wait_for_timeout(8000)  # extra time for all iframes to load
         print("Page title:", page.title())
 
         if "login" in page.url.lower() or "verify" in page.title().lower():
@@ -55,13 +54,14 @@ def run():
                 try:
                     if url_fragment in frame.url:
                         print(f"Found {block_name} iframe — waiting for Run button...")
-                        frame.wait_for_timeout(2000)
+                        frame.wait_for_timeout(3000)
                         btn = frame.locator('button:has-text("Run")')
                         if btn.count() > 0:
                             btn.first.click()
-                            print(f"  ✓ Clicked Run in {block_name}")
+                            print(f"  ✓ Clicked Run in {block_name} — waiting 60s for execution...")
+                            page.wait_for_timeout(60000)  # wait 60s for the script to actually run
+                            print(f"  ✓ {block_name} done")
                             clicked = True
-                            page.wait_for_timeout(1500)
                             break
                         else:
                             print(f"  ! No Run button found in {block_name}")
@@ -81,12 +81,15 @@ def run():
             if not success:
                 all_ok = False
 
+        print("\nWaiting 10s for any final processing...")
+        page.wait_for_timeout(15000)
+
         browser.close()
 
         if not all_ok:
             sys.exit(1)
 
-        print("\nDone — all Run buttons clicked.")
+        print("Done — all Run buttons clicked and executed.")
 
 if __name__ == "__main__":
     run()
