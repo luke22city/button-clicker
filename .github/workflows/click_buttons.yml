@@ -1,4 +1,3 @@
-
 name: Click Buttons
 
 on:
@@ -25,7 +24,7 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
-- name: Run button clicker
+      - name: Run button clicker
         env:
           AIRTABLE_COOKIES: ${{ secrets.AIRTABLE_COOKIES }}
           SITE_USER: ${{ secrets.SITE_USER }}
