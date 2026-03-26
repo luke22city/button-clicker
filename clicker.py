@@ -10,14 +10,15 @@ if not COOKIES_JSON:
     print("ERROR: AIRTABLE_COOKIES secret is not set.")
     sys.exit(1)
 
+# Block name, iframe URL fragment, wait time in milliseconds
 BLOCKS = [
-    ("Partners",        "2g6508a"),
-    ("User",            "pbt7bis"),
-    ("Licenses",        "7gc54xg"),
-    ("Potentials",      "24m4f0j"),
-    ("Quotes",          "4xq9c2h"),
-    ("Accounts",        "mq82ak7"),
-    ("CEO User Groups", "i2e5m6q"),
+    ("Partners",        "2g6508a",  30000),
+    ("User",            "pbt7bis",  60000),
+    ("Licenses",        "7gc54xg",  60000),
+    ("Potentials",      "24m4f0j", 120000),
+    ("Quotes",          "4xq9c2h", 120000),
+    ("Accounts",        "mq82ak7",  30000),
+    ("CEO User Groups", "i2e5m6q",  30000),
 ]
 
 def run():
@@ -33,11 +34,11 @@ def run():
         print(f"Loaded {len(cookies)} cookies")
 
         page = context.new_page()
-        page.set_default_timeout(60000)
+        page.set_default_timeout(180000)
 
         print("Navigating to target view...")
         page.goto(TARGET_URL, wait_until="domcontentloaded")
-        page.wait_for_timeout(8000)  # extra time for all iframes to load
+        page.wait_for_timeout(8000)
         print("Page title:", page.title())
 
         if "login" in page.url.lower() or "verify" in page.title().lower():
@@ -48,18 +49,17 @@ def run():
         print(f"Found {len(page.frames)} frames total")
 
         results = []
-        for block_name, url_fragment in BLOCKS:
+        for block_name, url_fragment, wait_ms in BLOCKS:
             clicked = False
             for frame in page.frames:
                 try:
                     if url_fragment in frame.url:
-                        print(f"Found {block_name} iframe — waiting for Run button...")
-                        frame.wait_for_timeout(3000)
+                        print(f"Found {block_name} — clicking Run, waiting {wait_ms//1000}s...")
+                        frame.wait_for_timeout(2000)
                         btn = frame.locator('button:has-text("Run")')
                         if btn.count() > 0:
                             btn.first.click()
-                            print(f"  ✓ Clicked Run in {block_name} — waiting 60s for execution...")
-                            page.wait_for_timeout(60000)  # wait 60s for the script to actually run
+                            page.wait_for_timeout(wait_ms)
                             print(f"  ✓ {block_name} done")
                             clicked = True
                             break
@@ -81,15 +81,12 @@ def run():
             if not success:
                 all_ok = False
 
-        print("\nWaiting 10s for any final processing...")
-        page.wait_for_timeout(15000)
-
         browser.close()
 
         if not all_ok:
             sys.exit(1)
 
-        print("Done — all Run buttons clicked and executed.")
+        print("\nDone — all Run buttons clicked.")
 
 if __name__ == "__main__":
     run()
