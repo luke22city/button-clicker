@@ -10,6 +10,17 @@ if not COOKIES_JSON:
     print("ERROR: AIRTABLE_COOKIES secret is not set.")
     sys.exit(1)
 
+# All 7 blocks identified by their unique iframe URL fragment
+BLOCKS = [
+    ("Partners",        "2g6508a"),
+    ("User",            "pbt7bis"),
+    ("Licenses",        "7gc54xg"),
+    ("Potentials",      "24m4f0j"),
+    ("Quotes",          "4xq9c2h"),
+    ("Accounts",        "mq82ak7"),
+    ("CEO User Groups", "i2e5m6q"),
+]
+
 def run():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -17,7 +28,6 @@ def run():
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
 
-        # Load saved cookies so we skip login entirely
         print("Loading saved session cookies...")
         cookies = json.loads(COOKIES_JSON)
         context.add_cookies(cookies)
@@ -26,49 +36,57 @@ def run():
         page = context.new_page()
         page.set_default_timeout(60000)
 
-        # Navigate directly to the target view
         print("Navigating to target view...")
         page.goto(TARGET_URL, wait_until="domcontentloaded")
         page.wait_for_timeout(6000)
         print("Page title:", page.title())
 
-        # Check we are actually logged in
         if "login" in page.url.lower() or "verify" in page.title().lower():
-            print("ERROR: Session expired or not logged in. Cookies need to be refreshed.")
+            print("ERROR: Session expired. Cookies need to be refreshed.")
             browser.close()
             sys.exit(1)
 
-        # Find the Airtable block iframe and click Run
         print(f"Found {len(page.frames)} frames total")
 
-        run_clicked = False
-        for frame in page.frames:
-            try:
-                url = frame.url
-                print(f"Frame: {url[:100]}")
-                if "airtableblocks.com" in url:
-                    print("Found Airtable block iframe!")
-                    frame.wait_for_timeout(3000)
-                    btn = frame.locator('button:has-text("Run")')
-                    count = btn.count()
-                    print(f"Run buttons found: {count}")
-                    if count > 0:
-                        btn.first.click()
-                        print("SUCCESS — Clicked Run button!")
-                        run_clicked = True
-                        break
-            except Exception as e:
-                print(f"Frame error: {e}")
-                continue
+        results = []
+        for block_name, url_fragment in BLOCKS:
+            clicked = False
+            for frame in page.frames:
+                try:
+                    if url_fragment in frame.url:
+                        print(f"Found {block_name} iframe — waiting for Run button...")
+                        frame.wait_for_timeout(2000)
+                        btn = frame.locator('button:has-text("Run")')
+                        if btn.count() > 0:
+                            btn.first.click()
+                            print(f"  ✓ Clicked Run in {block_name}")
+                            clicked = True
+                            page.wait_for_timeout(1500)
+                            break
+                        else:
+                            print(f"  ! No Run button found in {block_name}")
+                except Exception as e:
+                    print(f"  ! Error in {block_name}: {e}")
+                    continue
 
-        if not run_clicked:
-            print("ERROR: Could not find Run button in any frame.")
-            browser.close()
+            if not clicked:
+                print(f"  ! Could not click {block_name}")
+            results.append((block_name, clicked))
+
+        print("\n--- Summary ---")
+        all_ok = True
+        for name, success in results:
+            status = "SUCCESS" if success else "FAILED"
+            print(f"  {status}: {name}")
+            if not success:
+                all_ok = False
+
+        browser.close()
+
+        if not all_ok:
             sys.exit(1)
 
-        page.wait_for_timeout(2000)
-        browser.close()
-        print("Done.")
+        print("\nDone — all Run buttons clicked.")
 
 if __name__ == "__main__":
     run()
