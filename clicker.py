@@ -15,8 +15,8 @@ BLOCKS = [
     ("Partners",        "2g6508a",  30000),
     ("User",            "pbt7bis",  60000),
     ("Licenses",        "7gc54xg",  60000),
-    ("Potentials",      "24m4f0j", 120000),
-    ("Quotes",          "4xq9c2h", 120000),
+    ("Potentials",      "24m4f0j", 240000),
+    ("Quotes",          "4xq9c2h", 180000),
     ("Accounts",        "mq82ak7",  30000),
     ("CEO User Groups", "i2e5m6q",  30000),
 ]
