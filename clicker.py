@@ -11,13 +11,13 @@ if not COOKIES_JSON:
     sys.exit(1)
 
 BLOCKS = [
-    ("Partners",        "2g6508a",  30000),
-    ("User",            "pbt7bis",  60000),
-    ("Licenses",        "7gc54xg",  60000),
-    ("Potentials",      "24m4f0j", 240000),
-    ("Quotes",          "4xq9c2h", 180000),
-    ("Accounts",        "mq82ak7",  30000),
-    ("CEO User Groups", "i2e5m6q",  30000),
+    ("Partners",        "2g6508a",  240000),
+    ("User",            "pbt7bis",  240000),
+    ("Licenses",        "7gc54xg",  240000),
+    ("Potentials",      "24m4f0j",  240000),
+    ("Quotes",          "4xq9c2h",  240000),
+    ("Accounts",        "mq82ak7",  240000),
+    ("CEO User Groups", "i2e5m6q",  240000),
 ]
 
 def close_fullscreen(page):
@@ -33,6 +33,22 @@ def close_fullscreen(page):
     except Exception:
         page.keyboard.press("Escape")
         page.wait_for_timeout(1000)
+
+def wait_for_done(frame, timeout_ms):
+    """Poll the iframe content every 3 seconds until 'Done!' appears or timeout."""
+    elapsed = 0
+    interval = 3000
+    while elapsed < timeout_ms:
+        try:
+            content = frame.locator('body').inner_text()
+            if "Done!" in content:
+                return True
+        except Exception:
+            pass
+        frame.page.wait_for_timeout(interval)
+        elapsed += interval
+        print(f"  Still running... ({elapsed//1000}s elapsed)")
+    return False
 
 def run():
     with sync_playwright() as p:
@@ -60,7 +76,7 @@ def run():
             sys.exit(1)
 
         results = []
-        for block_name, url_fragment, wait_ms in BLOCKS:
+        for block_name, url_fragment, timeout_ms in BLOCKS:
             print(f"\nProcessing {block_name}...")
             clicked = False
 
@@ -93,9 +109,12 @@ def run():
                             btn = frame.locator('button:has-text("Run")')
                             if btn.count() > 0:
                                 btn.first.click()
-                                print(f"  Waiting {wait_ms//1000}s...")
-                                page.wait_for_timeout(wait_ms)
-                                print(f"  ✓ {block_name} done")
+                                print(f"  Waiting for Done!...")
+                                done = wait_for_done(frame, timeout_ms)
+                                if done:
+                                    print(f"  ✓ {block_name} — Done! detected")
+                                else:
+                                    print(f"  ! {block_name} — timed out waiting for Done!")
                                 clicked = True
                             else:
                                 print(f"  No Run button found")
@@ -107,7 +126,7 @@ def run():
             except Exception as e:
                 print(f"  Error: {e}")
 
-            # Always close fullscreen before moving to next block
+            # Always close fullscreen before next block
             close_fullscreen(page)
 
             if not clicked:
