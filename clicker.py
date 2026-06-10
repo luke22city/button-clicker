@@ -20,6 +20,19 @@ BLOCKS = [
     ("CEO User Groups", "i2e5m6q",  240000),
 ]
 
+def dismiss_transcend_overlay(page):
+    """Disable the Transcend consent overlay so it doesn't intercept pointer events."""
+    try:
+        page.evaluate("""
+            const el = document.getElementById('transcend-shadow-root');
+            if (el) {
+                el.style.pointerEvents = 'none';
+                el.style.display = 'none';
+            }
+        """)
+    except Exception:
+        pass
+
 def close_fullscreen(page):
     try:
         exit_btn = page.locator('[aria-label="Exit fullscreen"]')
@@ -75,15 +88,21 @@ def run():
             browser.close()
             sys.exit(1)
 
+        # Suppress the Transcend overlay once after page load
+        dismiss_transcend_overlay(page)
+
         results = []
         for block_name, url_fragment, timeout_ms in BLOCKS:
             print(f"\nProcessing {block_name}...")
             clicked = False
 
             try:
-                # Hover to reveal fullscreen button
+                # Re-suppress overlay before each block in case it re-renders
+                dismiss_transcend_overlay(page)
+
+                # Hover to reveal fullscreen button, using force=True to bypass intercept checks
                 block_frame = page.locator(f'iframe[src*="{url_fragment}"]').first
-                block_frame.hover()
+                block_frame.hover(force=True)
                 page.wait_for_timeout(1000)
 
                 # Click fullscreen
@@ -94,7 +113,7 @@ def run():
                 ).locator('[aria-label="Enter fullscreen"]')
 
                 if fs_button.count() > 0:
-                    fs_button.click()
+                    fs_button.click(force=True)
                     print(f"  Opened fullscreen")
                     page.wait_for_timeout(3000)
                 else:
